@@ -31,15 +31,23 @@ public:
 	Segment(double, double, double, double);	
 	~Segment() {}
 
-	bool intersect(const Segment&, double&, double&);
+	bool intersect(const Segment&, double&, double&) const;
 	static Segment generateSegment(double min, double max);
+	static Segment generateLengthSegment(double min, double max, double length);
 	static Segment generateParallelSegment(const Segment& s, int range);
 	static Segment generateSegmentFromStart(const Segment& s, int range);
-	void printInfo();
+	void printInfo() const;
+	void printNeighbours() const;
+	void connect(Segment& s);
 private:
 	double x1, y1, x2, y2;
 	double s_x, s_y;
+	vector<Segment*> neighbours;
+	int index;
+	static int global_index;
 };
+
+int Segment::global_index = 0;
 
 Segment::Segment(double a, double b, double c, double d)
 {
@@ -55,19 +63,41 @@ Segment::Segment(double a, double b, double c, double d)
 	}
 	s_x = x2 - x1;
 	s_y = y2 - y1;
+	index = ++global_index;
 }
 
-void Segment::printInfo()
+void Segment::printInfo() const
 {
-	std::cout<<"Beginning: ("<<x1<<", "<<y1<<")  End: ("<<x2<<", "<<y2<<")"<<std::endl;
+	std::cout<<"Index: "<<index<<" Beginning: ("<<x1<<", "<<y1<<")  End: ("<<x2<<", "<<y2<<")"<<std::endl;
+}
+
+void Segment::printNeighbours() const
+{
+	std::cout<<"Segment "<<index<<std::endl;
+	for(auto n : neighbours)
+		std::cout<<"Neighbour: "<<n->index<<std::endl;
 }
 
 Segment Segment::generateSegment(double min, double max)
 {
 	random_device rd;
 	default_random_engine e2(rd());
-	uniform_real_distribution<double> dist(0, 100);
+	uniform_real_distribution<double> dist(min, max);
 	return Segment(dist(e2), dist(e2), dist(e2), dist(e2));
+}
+		
+Segment Segment::generateLengthSegment(double min, double max, double length)
+{
+	random_device rd;
+	default_random_engine e2(rd());
+	uniform_real_distribution<double> dist(min + length, max - length);
+	double x1 = dist(e2);
+	double y1 = dist(e2);
+
+	uniform_real_distribution<double> dist_length(-length, length);
+	double x_shift = dist_length(e2);
+	double y_shift = dist_length(e2);
+	return Segment(x1, y1, x1 + x_shift, y1 + y_shift );
 }
 
 Segment Segment::generateParallelSegment(const Segment& s, int range)
@@ -92,7 +122,7 @@ Segment Segment::generateSegmentFromStart(const Segment& s, int range)
 	return Segment(x, y, s.x2 + dist_shift(e2), s.y2 + dist_shift(e2));
 }
 
-bool Segment::intersect(const Segment& s, double& x, double& y)
+bool Segment::intersect(const Segment& s, double& x, double& y) const
 {
 	
 	double parallel = -s.s_x * s_y + s_x * s.s_y;
@@ -132,24 +162,41 @@ bool Segment::intersect(const Segment& s, double& x, double& y)
 	return false;
 }	
 
+void Segment::connect(Segment& s)
+{
+	neighbours.push_back(&s);
+}
 
 
-		
+
 
 int main()
 {
 	int n = 100;
 	double x,y;
 	//cin>>n;
-	//vector<Segment> segments;
+	vector<Segment> segments;
 
 	Segment s = Segment::generateSegment(0, 100);
 	s.printInfo();
 	for(int i = 0; i<n; ++i)
 	{
-		Segment::generateParallelSegment(s, 100).printInfo();
-		Segment::generateSegmentFromStart(s, 100).printInfo();
+		segments.push_back(Segment::generateLengthSegment(0,100,10));
+		segments[i].printInfo();
 	}
-
+	for(int i = 0; i < n; ++i)
+	{
+		for(int j = i+1; j < n; ++j)
+		{
+			if(segments[i].intersect(segments[j], x, y))
+			{
+				std::cout<<"Intersection "<<i<<" "<<j<<" at "<<x<<" "<<y<<std::endl;
+				segments[i].connect(segments[j]);
+				segments[j].connect(segments[i]);
+			}
+		}
+	}
+	for( auto s : segments )
+		s.printNeighbours();
 }
 
