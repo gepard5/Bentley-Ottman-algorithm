@@ -20,7 +20,9 @@
 #include <random>
 #include <vector>
 
-using namespace std;
+#include <SFML/Graphics.hpp>
+#include <SFML/Window.hpp>
+
 
 
 
@@ -42,7 +44,7 @@ public:
 private:
 	double x1, y1, x2, y2;
 	double s_x, s_y;
-	vector<Segment*> neighbours;
+	std::vector<Segment*> neighbours;
 	int index;
 	static int global_index;
 };
@@ -80,21 +82,21 @@ void Segment::printNeighbours() const
 
 Segment Segment::generateSegment(double min, double max)
 {
-	random_device rd;
-	default_random_engine e2(rd());
-	uniform_real_distribution<double> dist(min, max);
+	std::random_device rd;
+	std::default_random_engine e2(rd());
+	std::uniform_real_distribution<double> dist(min, max);
 	return Segment(dist(e2), dist(e2), dist(e2), dist(e2));
 }
 		
 Segment Segment::generateLengthSegment(double min, double max, double length)
 {
-	random_device rd;
-	default_random_engine e2(rd());
-	uniform_real_distribution<double> dist(min + length, max - length);
+	std::random_device rd;
+	std::default_random_engine e2(rd());
+	std::uniform_real_distribution<double> dist(min + length, max - length);
 	double x1 = dist(e2);
 	double y1 = dist(e2);
 
-	uniform_real_distribution<double> dist_length(-length, length);
+	std::uniform_real_distribution<double> dist_length(-length, length);
 	double x_shift = dist_length(e2);
 	double y_shift = dist_length(e2);
 	return Segment(x1, y1, x1 + x_shift, y1 + y_shift );
@@ -102,9 +104,9 @@ Segment Segment::generateLengthSegment(double min, double max, double length)
 
 Segment Segment::generateParallelSegment(const Segment& s, int range)
 {
-	random_device rd;
-	default_random_engine e2(rd());
-	uniform_real_distribution<double> dist(-range, range);
+	std::random_device rd;
+	std::default_random_engine e2(rd());
+	std::uniform_real_distribution<double> dist(-range, range);
 	int x_shift = dist(e2);
 	int y_shift = dist(e2);
 	return Segment(s.x1 + x_shift, s.y1 + y_shift, s.x2 + x_shift, s.y2 + y_shift);
@@ -112,13 +114,13 @@ Segment Segment::generateParallelSegment(const Segment& s, int range)
 
 Segment Segment::generateSegmentFromStart(const Segment& s, int range)
 {
-	random_device rd;
-	default_random_engine e2(rd());
-	uniform_real_distribution<double> dist(0, 1);
+	std::random_device rd;
+	std::default_random_engine e2(rd());
+	std::uniform_real_distribution<double> dist(0, 1);
 	double x = s.x1 + s.s_x * dist(e2);
 	double y = s.y1 + s.s_y * dist(e2);
 
-	uniform_real_distribution<double> dist_shift(-range, range);
+	std::uniform_real_distribution<double> dist_shift(-range, range);
 	return Segment(x, y, s.x2 + dist_shift(e2), s.y2 + dist_shift(e2));
 }
 
@@ -175,7 +177,7 @@ int main()
 	int n = 100;
 	double x,y;
 	//cin>>n;
-	vector<Segment> segments;
+	std::vector<Segment> segments;
 
 	Segment s = Segment::generateSegment(0, 100);
 	s.printInfo();
@@ -198,5 +200,23 @@ int main()
 	}
 	for( auto s : segments )
 		s.printNeighbours();
+
+	sf::RenderWindow window(sf::VideoMode(1000, 1000), "Test window");
+
+	while(window.isOpen())
+	{
+		sf::Event event;
+		while(window.pollEvent(event))
+		{
+			if(event.type == sf::Event::Closed)
+				window.close();
+		}
+
+
+		window.clear();
+
+		window.display();
+	}
+
 }
 
