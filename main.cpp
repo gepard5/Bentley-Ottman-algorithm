@@ -19,6 +19,7 @@
 #include <iostream>
 #include <random>
 #include <vector>
+#include <queue>
 
 #include <SFML/Graphics.hpp>
 #include <SFML/Window.hpp>
@@ -38,13 +39,30 @@ public:
 	static Segment generateLengthSegment(double min, double max, double length);
 	static Segment generateParallelSegment(const Segment& s, int range);
 	static Segment generateSegmentFromStart(const Segment& s, int range);
+	sf::Color generateColor(int) const;
 	void printInfo() const;
 	void printNeighbours() const;
 	void connect(Segment& s);
+
+	sf::Vertex *getVertexes();
+
+	int getIndex() const
+	{ return index; }
+
+	std::vector<Segment*>& getNeighbours()
+	{ return neighbours; }
+
+	int getGroup() const
+	{ return group; }
+
+	void setGroup(int g);
 private:
 	double x1, y1, x2, y2;
 	double s_x, s_y;
 	std::vector<Segment*> neighbours;
+	sf::Vertex line[2];
+	sf::Color color;
+	int group;
 	int index;
 	static int global_index;
 };
@@ -65,12 +83,14 @@ Segment::Segment(double a, double b, double c, double d)
 	}
 	s_x = x2 - x1;
 	s_y = y2 - y1;
+	color = sf::Color::White;
 	index = ++global_index;
+	group = -1;
 }
 
 void Segment::printInfo() const
 {
-	std::cout<<"Index: "<<index<<" Beginning: ("<<x1<<", "<<y1<<")  End: ("<<x2<<", "<<y2<<")"<<std::endl;
+	std::cout<<"Index: "<<index<<" Beginning: ("<<x1<<", "<<y1<<")  End: ("<<x2<<", "<<y2<<")"<<" Group: "<<group<<std::endl;
 }
 
 void Segment::printNeighbours() const
@@ -164,27 +184,87 @@ bool Segment::intersect(const Segment& s, double& x, double& y) const
 	return false;
 }	
 
+sf::Vertex *Segment::getVertexes()
+{	
+	line[0] = sf::Vertex(sf::Vector2f(x1, y1), color);
+	line[1] = sf::Vertex(sf::Vector2f(x2, y2), color);
+	return line;
+}
+
 void Segment::connect(Segment& s)
 {
 	neighbours.push_back(&s);
 }
 
+void Segment::setGroup(int g)
+{
+	group = g;
+	color = generateColor(group);
+}
 
+sf::Color Segment::generateColor(int group) const
+{
+	srand(group);
+	return sf::Color(rand() % 255, rand() % 255, rand() % 255);
+}
 
+void addSquare(std::vector<sf::RectangleShape>& squares, int x, int y)
+{
+	sf::RectangleShape rectangle;
+	rectangle.setSize(sf::Vector2f(5, 5));
+	rectangle.setFillColor(sf::Color::Red);
+	rectangle.setPosition(x - 2 , y - 2);
+	squares.push_back(rectangle);
+}
+
+void BFS(std::vector<Segment>& segments)
+{
+	std::vector<bool> visited(segments.size(), false);
+	int group_index = -1;
+	std::queue<Segment*> group;
+	Segment* s;
+	int index;
+	for(int i = 0; i < segments.size(); ++i)
+	{
+		s = &segments[i];
+		index = s->getIndex();
+		if(visited[index]) continue;
+		
+		group.push(s);
+		++group_index;
+		visited[index] = true;
+		s->setGroup(group_index);
+		while(!group.empty())
+		{
+			s = group.front();
+			index = s->getIndex();
+			auto neighbours = s->getNeighbours();
+			for( auto n : neighbours)
+			{
+				if(visited[n->getIndex()]) continue;
+
+				visited[n->getIndex()] = true;
+				group.push(n);
+				n->setGroup(group_index);
+			}
+			group.pop();
+		}
+	}
+}
 
 int main()
 {
-	int n = 100;
+	int n = 5000;
 	double x,y;
 	//cin>>n;
 	std::vector<Segment> segments;
+	std::vector<sf::RectangleShape> squares;
 
 	Segment s = Segment::generateSegment(0, 100);
 	s.printInfo();
 	for(int i = 0; i<n; ++i)
 	{
-		segments.push_back(Segment::generateLengthSegment(0,100,10));
-		segments[i].printInfo();
+		segments.push_back(Segment::generateLengthSegment(0,1000,30));
 	}
 	for(int i = 0; i < n; ++i)
 	{
@@ -193,13 +273,18 @@ int main()
 			if(segments[i].intersect(segments[j], x, y))
 			{
 				std::cout<<"Intersection "<<i<<" "<<j<<" at "<<x<<" "<<y<<std::endl;
+				addSquare(squares, x, y);
 				segments[i].connect(segments[j]);
 				segments[j].connect(segments[i]);
 			}
 		}
 	}
+	BFS(segments);
+	
 	for( auto s : segments )
-		s.printNeighbours();
+		s.printInfo();
+
+
 
 	sf::RenderWindow window(sf::VideoMode(1000, 1000), "Test window");
 
@@ -214,7 +299,14 @@ int main()
 
 
 		window.clear();
-
+		for( auto s : segments)
+		{
+			window.draw(s.getVertexes(), 2, sf::Lines);
+		}
+		for(auto s : squares)
+		{
+			window.draw(s);
+		}
 		window.display();
 	}
 
