@@ -24,8 +24,33 @@
 #include <SFML/Graphics.hpp>
 #include <SFML/Window.hpp>
 
+enum Type  { BEGINNING, END, CROSS };
 
+class Point
+{
+public:
+	Point();
+	Point(double, double, Type);
+	~Point() {}
 
+	void printInfo();
+
+	double x;
+	double y;
+	Type t;
+};
+
+Point::Point(double m_x, double m_y, Type m_t): x(m_x), y(m_y), t(m_t) {}
+	
+void Point::printInfo()
+{
+	std::cout<<"Point. X: "<<x<<" Y: "<<y<<std::endl;
+}
+
+bool operator>(const Point& p1, const Point& p2)
+{ 
+	return p1.x == p2.x ? p1.y > p2.y : p1.x > p2.x ; 
+}
 
 class Segment
 {
@@ -51,6 +76,12 @@ public:
 
 	std::vector<Segment*>& getNeighbours()
 	{ return neighbours; }
+
+	Point getBeginning()
+	{ return Point(x1, y1, BEGINNING); }
+
+	Point getEnd()
+	{ return Point(x1, y2, END); }
 
 	int getGroup() const
 	{ return group; }
@@ -252,9 +283,26 @@ void BFS(std::vector<Segment>& segments)
 	}
 }
 
+void OttmanBentley(std::vector<Segment>& segments)
+{
+	//generate beginning priority queue
+	std::priority_queue<Point, std::vector<Point>, std::greater<Point> > event_queue;
+	for( auto s : segments )
+	{
+		event_queue.push(s.getBeginning());
+		event_queue.push(s.getEnd());
+	}	
+
+	while( !event_queue.empty() )
+	{
+		event_queue.top().printInfo();
+		event_queue.pop();
+	}
+}
+
 int main()
 {
-	int n = 5000;
+	int n = 50;
 	double x,y;
 	//cin>>n;
 	std::vector<Segment> segments;
@@ -279,8 +327,9 @@ int main()
 			}
 		}
 	}
+	OttmanBentley(segments);
 	BFS(segments);
-	
+		
 	for( auto s : segments )
 		s.printInfo();
 
