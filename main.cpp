@@ -20,46 +20,77 @@
 #include <random>
 #include <vector>
 #include <queue>
+#include <set>
+#include <iterator>
 
 #include <SFML/Graphics.hpp>
 #include <SFML/Window.hpp>
 
 enum Type  { BEGINNING, END, CROSS };
+class Segment;
 
 class Point
 {
 public:
 	Point();
-	Point(double, double, Type);
+	Point(double m_x, double m_y, Type m_t, Segment *m_owner, Segment *m_intersection=nullptr);
 	~Point() {}
 
-	void printInfo();
+	void printInfo() const;
+	Type getType() const
+	{ return t; }
 
+	int getOwner() const
+	{ return owner->getIndex(); }
+
+	int getIntersection() const
+	{ return intersection->getIndex(); }
+
+	void setIntersection( Segment *i ) 
+	{ intersection = i; }
+
+	struct cmp_point {
+		bool operator()(const Point& p1, const Point& p2) const
+		{ return p1.x == p2.x ? p1.y < p2.y : p1.x < p2.x; }
+	};
 	double x;
 	double y;
 	Type t;
+	Segment *owner;
+	Segment *intersection;
 };
 
-Point::Point(double m_x, double m_y, Type m_t): x(m_x), y(m_y), t(m_t) {}
+Point::Point(double m_x, double m_y, Type m_t, Segment *m_owner, Segment *m_intersection): 
+	x(m_x), y(m_y), t(m_t), owner(m_owner), intersection(m_intersection) {}
 	
-void Point::printInfo()
+void Point::printInfo() const
 {
 	std::cout<<"Point. X: "<<x<<" Y: "<<y<<std::endl;
 }
 
 bool operator>(const Point& p1, const Point& p2)
 { 
-	return p1.x == p2.x ? p1.y > p2.y : p1.x > p2.x ; 
+	return p1.x == p2.x ? p1.y < p2.y : p1.x < p2.x ; 
 }
+
+bool operator==(const Point& p1, const Point& p2)
+{
+	return p1.x == p2.x && p1.y == p2.y ;
+}
+
+
 
 class Segment
 {
 public:
-	Segment();
+	Segment() : data(new SegmentData) {};
 	Segment(double, double, double, double);	
-	~Segment() {}
+	Segment(const Segment&);
+	~Segment() { std::cout<<"Destructor: "<<getIndex()<<std::endl; if ( data != nullptr ) delete data; }
 
-	bool intersect(const Segment&, double&, double&) const;
+	bool intersects(const Segment&, double&, double&) const;
+	bool intersects(const Segment *s, double& x, double& y) const
+	{ return intersects(*s, x, y); }
 	static Segment generateSegment(double min, double max);
 	static Segment generateLengthSegment(double min, double max, double length);
 	static Segment generateParallelSegment(const Segment& s, int range);
@@ -72,63 +103,123 @@ public:
 	sf::Vertex *getVertexes();
 
 	int getIndex() const
-	{ return index; }
+	{ return data->index; }
 
 	std::vector<Segment*>& getNeighbours()
-	{ return neighbours; }
+	{ return data->neighbours; }
 
-	Point getBeginning()
-	{ return Point(x1, y1, BEGINNING); }
+	Point getBeginning() const 
+	{ return Point(data->x1, data->y1, BEGINNING, this); }
 
-	Point getEnd()
-	{ return Point(x1, y2, END); }
+	Point getEnd() const
+	{ return Point(data->x2, data->y2, END, this); }
 
 	int getGroup() const
-	{ return group; }
+	{ return data->group; }
 
 	void setGroup(int g);
+	Point sweepLineIntersection() const;
+	static void setSweepLine( const Point& p)
+	{ sweep_line = p.x; }
+
+	void swap( Segment& );
+
+	void setSpecialIntersection( Point );
+
+	bool isVertical() const
+	{ return data->s_x == 0; }
+
+	struct cmp_ptr
+	{
+		bool operator()(const Segment *s1, const Segment *s2) const;
+	};
 private:
-	double x1, y1, x2, y2;
-	double s_x, s_y;
-	std::vector<Segment*> neighbours;
-	sf::Vertex line[2];
-	sf::Color color;
-	int group;
-	int index;
+
+	struct SegmentData {
+		double x1, y1, x2, y2;
+		double s_x, s_y;
+		double special_intersection;
+		std::vector<Segment*> neighbours;
+		sf::Vertex line[2];
+		sf::Color color;
+		int group;
+		int index;
+	};
+
+	SegmentData *data;
 	static int global_index;
+	static double sweep_line;
 };
 
+
 int Segment::global_index = 0;
+double Segment::sweep_line = 0.0;
+
+bool Segment::cmp_ptr::operator()(const Segment *s1, const Segment *s2) const
+{
+	if( s1->data->index == s2->data->index ) return false;
+
+	Point p1 = s1->sweepLineIntersection();
+	Point p2 = s2->sweepLineIntersection();
+
+	if( p1.y == p2.y ) {
+		if( s1->data->s_x == 0 ) return false;
+		if( s2->data->s_x == 0 ) return true;
+
+		Point s1_beg = s1->getBeginning();
+		Point s2_beg = s2->getBeginning();
+
+		double old_sweep_line = sweep_line;
+		sweep_line = s1_beg.x;
+
+		p1 = s1->sweepLineIntersection();
+		p2 = s2->sweepLineIntersection();
+		std::cout<<"P1: "<<p1.y<<std::endl;
+		std::cout<<"P2: "<<p2.y<<std::endl;
+
+		sweep_line = old_sweep_line;
+	}
+	return p1.y < p2.y ;
+}
+
 
 Segment::Segment(double a, double b, double c, double d)
 {
+	data = new SegmentData();
 	if(a <= c)
 	{
-		x1 = a; x2 = c;
-		y1 = b; y2 = d;
+		data->x1 = a; data->x2 = c;
+		data->y1 = b; data->y2 = d;
 	}
 	else
 	{
-		x1 = c; x2 = a;
-		y1 = d; y2 = b;
+		data->x1 = c; data->x2 = a;
+		data->y1 = d; data->y2 = b;
 	}
-	s_x = x2 - x1;
-	s_y = y2 - y1;
-	color = sf::Color::White;
-	index = ++global_index;
-	group = -1;
+	data->s_x = data->x2 - data->x1;
+	data->s_y = data->y2 - data->y1;
+	data->color = sf::Color::White;
+	data->index = global_index++;
+	data->group = -1;
+	data->special_intersection = data->x1;
+}
+
+Segment::Segment( const Segment& s)
+{
+	data = new SegmentData();
+	*data = *(s.data);
 }
 
 void Segment::printInfo() const
 {
-	std::cout<<"Index: "<<index<<" Beginning: ("<<x1<<", "<<y1<<")  End: ("<<x2<<", "<<y2<<")"<<" Group: "<<group<<std::endl;
+	std::cout<<"Index: "<<getIndex()<<" Beginning: ("<<data->x1<<", "<<data->y1<<")  End: ("<<data->x2<<", "<<data->y2<<")"<<" Group: "<<data->group<<std::endl;
 }
 
 void Segment::printNeighbours() const
 {
-	std::cout<<"Segment "<<index<<std::endl;
-	for(auto n : neighbours)
-		std::cout<<"Neighbour: "<<n->index<<std::endl;
+	std::cout<<"Segment "<<getIndex()<<std::endl;
+	for(auto n : data->neighbours)
+		std::cout<<"Neighbour: "<<n->getIndex()<<std::endl;
 }
 
 Segment Segment::generateSegment(double min, double max)
@@ -160,7 +251,7 @@ Segment Segment::generateParallelSegment(const Segment& s, int range)
 	std::uniform_real_distribution<double> dist(-range, range);
 	int x_shift = dist(e2);
 	int y_shift = dist(e2);
-	return Segment(s.x1 + x_shift, s.y1 + y_shift, s.x2 + x_shift, s.y2 + y_shift);
+	return Segment(s.data->x1 + x_shift, s.data->y1 + y_shift, s.data->x2 + x_shift, s.data->y2 + y_shift);
 }
 
 Segment Segment::generateSegmentFromStart(const Segment& s, int range)
@@ -168,32 +259,32 @@ Segment Segment::generateSegmentFromStart(const Segment& s, int range)
 	std::random_device rd;
 	std::default_random_engine e2(rd());
 	std::uniform_real_distribution<double> dist(0, 1);
-	double x = s.x1 + s.s_x * dist(e2);
-	double y = s.y1 + s.s_y * dist(e2);
+	double x = s.data->x1 + s.data->s_x * dist(e2);
+	double y = s.data->y1 + s.data->s_y * dist(e2);
 
 	std::uniform_real_distribution<double> dist_shift(-range, range);
-	return Segment(x, y, s.x2 + dist_shift(e2), s.y2 + dist_shift(e2));
+	return Segment(x, y, s.data->x2 + dist_shift(e2), s.data->y2 + dist_shift(e2));
 }
 
-bool Segment::intersect(const Segment& s, double& x, double& y) const
+bool Segment::intersects(const Segment& s, double& x, double& y) const
 {
 	
-	double parallel = -s.s_x * s_y + s_x * s.s_y;
+	double parallel = -s.data->s_x * data->s_y + data->s_x * s.data->s_y;
 	if(parallel == 0)
 	{
 		double a_x, a_y;
-		a_x = s.x1 - x1;
-		a_y = s.y1 - y1;
-		if( a_x * s_y - a_y * s_x == 0) //colinear
+		a_x = s.data->x1 - data->x1;
+		a_y = s.data->y1 - data->y1;
+		if( a_x * data->s_y - a_y * data->s_x == 0) //colinear
 		{
-			if( x1 >= s.x1 && x1 <= s.x2 )
+			if( data->x1 >= s.data->x1 && data->x1 <= s.data->x2 )
 			{
-				x = x1; y = y1;
+				x = data->x1; y = data->y1;
 				return true;
 			}
-			if( s.x1 >= x1 && s.x1 <= s.x2 )
+			if( s.data->x1 >= data->x1 && s.data->x1 <= s.data->x2 )
 			{
-				x = s.x1; y = s.y1;
+				x = s.data->x1; y = s.data->y1;
 				return true;
 			}
 			return false;
@@ -203,13 +294,13 @@ bool Segment::intersect(const Segment& s, double& x, double& y) const
 	}
 
 	double u,t;
-	u = (-s_y * (x1 - s.x1) + s_x * (y1 - s.y1) ) / ( -s.s_x * s_y + s_x * s.s_y) ;
-	t = ( s.s_x * (y1 - s.y1) - s.s_y * (x1 - s.x1)) / ( -s.s_x * s_y + s_x * s.s_y) ;
+	u = (-data->s_y * (data->x1 - s.data->x1) + data->s_x * (data->y1 - s.data->y1) ) / ( -s.data->s_x * data->s_y + data->s_x * s.data->s_y) ;
+	t = ( s.data->s_x * (data->y1 - s.data->y1) - s.data->s_y * (data->x1 - s.data->x1)) / ( -s.data->s_x * data->s_y + data->s_x * s.data->s_y) ;
 
 	if(u >= 0 && u <= 1 && t >= 0 && t <= 1)
 	{
-		x = x1 + (t * s_x);
-		y = y1 + (t * s_y);
+		x = data->x1 + (t * data->s_x);
+		y = data->y1 + (t * data->s_y);
 		return true;
 	}
 	return false;
@@ -217,26 +308,52 @@ bool Segment::intersect(const Segment& s, double& x, double& y) const
 
 sf::Vertex *Segment::getVertexes()
 {	
-	line[0] = sf::Vertex(sf::Vector2f(x1, y1), color);
-	line[1] = sf::Vertex(sf::Vector2f(x2, y2), color);
-	return line;
+	data->line[0] = sf::Vertex(sf::Vector2f(data->x1, data->y1), data->color);
+	data->line[1] = sf::Vertex(sf::Vector2f(data->x2, data->y2), data->color);
+	return data->line;
 }
 
 void Segment::connect(Segment& s)
 {
-	neighbours.push_back(&s);
+	data->neighbours.push_back(&s);
 }
 
 void Segment::setGroup(int g)
 {
-	group = g;
-	color = generateColor(group);
+	data->group = g;
+	data->color = generateColor(data->group);
 }
 
 sf::Color Segment::generateColor(int group) const
 {
-	srand(group);
+	srand(data->group);
 	return sf::Color(rand() % 255, rand() % 255, rand() % 255);
+}
+
+Point Segment::sweepLineIntersection() const
+{
+	if( data->s_x == 0 ) {
+		return Point(sweep_line, data->special_intersection, CROSS, getIndex() );
+	}
+	double x = sweep_line;
+	double y = data->y1 + ( (x - data->x1) * data->s_y / data->s_x ) ;
+	std::cout<<"Segment: "<<getIndex()<<"sweep line x: "<<x<<" y: "<<y<<std::endl;
+	return Point(x, y, CROSS, getIndex() );
+}
+
+void Segment::setSpecialIntersection( Point p )
+{
+	data->special_intersection = p.x;
+}
+
+void Segment::swap( Segment& s )
+{
+	auto tmp_index = data->index;
+	auto tmp = data;
+	data = s.data;
+	s.data = tmp;
+	s.data->index = data->index;
+	data->index = tmp_index;
 }
 
 void addSquare(std::vector<sf::RectangleShape>& squares, int x, int y)
@@ -285,36 +402,125 @@ void BFS(std::vector<Segment>& segments)
 
 void OttmanBentley(std::vector<Segment>& segments)
 {
+	typedef std::set<Segment*, Segment::cmp_ptr>::iterator seg_itr;
 	//generate beginning priority queue
-	std::priority_queue<Point, std::vector<Point>, std::greater<Point> > event_queue;
+	std::set<Point, Point::cmp_point > event_queue;
+	std::set<Segment*, Segment::cmp_ptr> segments_tree;
+
 	for( auto s : segments )
 	{
-		event_queue.push(s.getBeginning());
-		event_queue.push(s.getEnd());
-	}	
+		event_queue.insert(s.getBeginning());
+		event_queue.insert(s.getEnd());
+	}
 
 	while( !event_queue.empty() )
 	{
-		event_queue.top().printInfo();
-		event_queue.pop();
+		for( auto s : segments_tree )
+			s->printInfo();
+		std::cout<<segments_tree.size()<<std::endl;
+		auto& p = *event_queue.begin();
+		std::cout<<"Point of segment: "<<p.getOwner()<<std::endl;
+		Segment *curr_segm = &(segments[p.getOwner()]);
+		seg_itr predecessor = segments_tree.end();
+		seg_itr sucessor = segments_tree.end();
+		Segment::setSweepLine( p );
+		if(p.getType() == BEGINNING ) {
+			std::cout<<"BEGINNING"<<std::endl;
+			seg_itr curr_itr = segments_tree.insert( curr_segm ).first;
+			if( curr_itr != segments_tree.begin() ){
+				predecessor = std::prev(curr_itr);
+			}
+			sucessor = std::next(curr_itr);
+			double x,y;
+			if( predecessor != segments_tree.end() && sucessor != segments_tree.end() && (*predecessor)->intersects( *sucessor, x, y ) ){
+				event_queue.erase( Point(x, y, CROSS, (*predecessor)->getIndex(), (*sucessor)->getIndex()  ) );
+			}
+
+			if( predecessor != segments_tree.end() && (*predecessor)->intersects( *curr_itr, x, y ) ) {
+				event_queue.insert( Point(x, y, CROSS, (*predecessor)->getIndex(), (*curr_itr)->getIndex() ) );
+			}
+
+			if( sucessor != segments_tree.end() && (*sucessor)->intersects( *curr_itr, x, y) ) {
+				event_queue.insert( Point(x, y, CROSS, (*curr_itr)->getIndex(), (*sucessor)->getIndex() ) );
+			}
+		}
+		else if( p.getType() == END ){
+			std::cout<<"END"<<std::endl;
+			seg_itr curr_itr = segments_tree.insert( curr_segm ).first;
+			if( curr_itr != segments_tree.begin() ){
+				predecessor = std::prev(curr_itr);
+			}
+			sucessor = std::next(curr_itr);
+			double x,y;
+			if( predecessor != segments_tree.end() && sucessor != segments_tree.end() ) {
+				if( (*predecessor)->intersects( *sucessor, x, y ) ) {
+					event_queue.insert( Point(x, y, CROSS, (*predecessor)->getIndex(), (*sucessor)->getIndex() ) );
+				}
+			}
+			segments_tree.erase( curr_itr );
+		}
+		else {
+			int s1 = p.getOwner();
+			int s2 = p.getIntersection();
+			std::cout<<"Intersection found between : "<<s1<<" and "<<s2<<std::endl;
+			segments[s1].connect(segments[s2]);
+			segments[s2].connect(segments[s1]);
+
+			std::cout<<"Finding s1!"<<std::endl;
+			auto s1_itr = segments_tree.find( &segments[s1] );
+			std::cout<<"Findind s2!"<<std::endl;
+			auto s2_itr = segments_tree.find( &segments[s2] );
+			if( s1_itr == segments_tree.end() ) std::cout<<"s1 fail!"<<std::endl;
+			if( s2_itr == segments_tree.end() ) std::cout<<"s2 fail!"<<std::endl;
+
+			if( s1_itr != segments_tree.begin() ) {
+				predecessor = std::prev(s1_itr);
+			}
+			sucessor = std::next(s2_itr);
+
+			double x,y;
+			if( sucessor != segments_tree.end() && (*sucessor)->intersects( *s2_itr, x, y) ){
+				event_queue.erase( Point(x, y, CROSS, (*s2_itr)->getIndex(), (*sucessor)->getIndex() ) );
+			}
+
+			if( predecessor != segments_tree.end() && (*predecessor)->intersects( *s1_itr, x, y) ){
+				event_queue.erase( Point(x, y, CROSS, (*predecessor)->getIndex(), (*s1_itr)->getIndex() ) );
+			}
+
+			if( sucessor != segments_tree.end() && (*sucessor)->intersects( *s1_itr, x, y) ){
+				event_queue.insert( Point(x, y, CROSS, (*s1_itr)->getIndex(), (*sucessor)->getIndex() ) );
+			}
+
+			if( predecessor != segments_tree.end() && (*predecessor)->intersects( *s2_itr, x, y) ){
+				event_queue.insert( Point(x, y, CROSS, (*predecessor)->getIndex(), (*s2_itr)->getIndex() ) );
+			}
+
+			if( segments[s1].isVertical() )
+				segments[s1].setSpecialIntersection( segments[s2].sweepLineIntersection() );
+
+			if( segments[s2].isVertical() )
+				segments[s2].setSpecialIntersection( segments[s1].sweepLineIntersection() );
+
+			segments[s1].swap( segments[s2] );
+		}
+		event_queue.erase( p );
 	}
+
 }
 
 int main()
 {
-	int n = 50;
+	int n = 10;
 	double x,y;
-	//cin>>n;
+	//cin>>
 	std::vector<Segment> segments;
 	std::vector<sf::RectangleShape> squares;
 
-	Segment s = Segment::generateSegment(0, 100);
-	s.printInfo();
 	for(int i = 0; i<n; ++i)
 	{
-		segments.push_back(Segment::generateLengthSegment(0,1000,30));
+		segments.push_back(Segment::generateLengthSegment(0,50,30));
 	}
-	for(int i = 0; i < n; ++i)
+/*  	for(int i = 0; i < n; ++i)
 	{
 		for(int j = i+1; j < n; ++j)
 		{
@@ -326,14 +532,11 @@ int main()
 				segments[j].connect(segments[i]);
 			}
 		}
-	}
+	}*/
 	OttmanBentley(segments);
 	BFS(segments);
-		
-	for( auto s : segments )
+	for( auto& s : segments )
 		s.printInfo();
-
-
 
 	sf::RenderWindow window(sf::VideoMode(1000, 1000), "Test window");
 
