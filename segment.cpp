@@ -21,12 +21,18 @@ Point::Point(double m_x, double m_y, Type m_t, SegmentData *m_owner, SegmentData
 
 bool Point::cmp_point::operator()(const Point& p1, const Point& p2) const
 { 
+	//if points are the same they can't be smaller
 	if( p1.getNumber() == p2.getNumber() && p1.getType() == p2.getType() && p1.getOwner() == p2.getOwner() )
 		return false;
+
+	//if points are from the same owner then
+	//beginning < cross < end
 	if( p1.getNumber() == p2.getNumber() ) {
 		if( p1.t != p2.t ) return p1.t < p2.t;
 	}
 	
+	//if comparing crossing and beginning or ending of its owner or intersection
+	//then beginning < cross < end
 	if( p1.getType() == CROSS && p1.getIntersection() == p2.getOwner() ) {
 		if( p1.t != p2.t ) return p1.t < p2.t;
 	}
@@ -42,13 +48,14 @@ bool Point::cmp_point::operator()(const Point& p1, const Point& p2) const
 void Point::printInfo() const
 {
 	std::cout<<"Point. X: "<<x<<" Y: "<<y;
-	std::cout<<"type: "<<t<<" segments "<<getNumber();
-	if( intersection ) std::cout<<" and: "<<intersection->number;
+	std::cout<<"type: "<<t<<" segmentsi: "<<getNumber();
+	if( intersection ) std::cout<<" and "<<intersection->number;
 	std::cout<<std::endl;
 }
 
 bool operator>(const Point& p1, const Point& p2)
 { 
+	//same points can't be smaller
 	if( p1.getNumber() == p2.getNumber() && p1.getIntersection() == p2.getIntersection() && p1.getType() == p2.getType() ) 
 		return false;
 	return equal(p1.x, p2.x, 0.0001) ? p1.y < p2.y : p1.x < p2.x ; 
@@ -70,9 +77,13 @@ bool Segment::cmp_ptr::operator()(const Segment *s1, const Segment *s2) const
 	Point p2 = s2->sweepLineIntersection();
 
 	if( equal(p1.y, p2.y, 0.0001) ) {
+		//vertical segment is always bigger
 		if( equal(s1->data->s_x, 0, 0.0001) ) return false;
 		if( equal(s2->data->s_x, 0, 0.0001) ) return true;
-
+	
+		//comparing is happening before swap
+		//so if we compare crossing of two points
+		//we can compare their beginnings
 		Point s1_beg = s1->getBeginning();
 
 		double old_sweep_line = sweep_line;
@@ -90,6 +101,8 @@ bool Segment::cmp_ptr::operator()(const Segment *s1, const Segment *s2) const
 Segment::Segment(double a, double b, double c, double d)
 {
 	data = new SegmentData();
+	//x1,y1 - beginning
+	//x2,y2 - end
 	if(a <= c)
 	{
 		data->x1 = a; data->x2 = c;
@@ -122,8 +135,6 @@ void Segment::printInfo() const
 		return;
 	}
 	std::cout<<"Index: "<<data->number<<" Beginning: ("<<data->x1<<", "<<data->y1<<")  End: ("<<data->x2<<", "<<data->y2<<")"<<" Group: "<<data->group;
-	Point p = sweepLineIntersection();
-	std::cout<<"Sweepline intersection: "<<p.x<<" "<<p.y<<std::endl;
 }
 
 void Segment::printNeighbours() const
@@ -149,6 +160,7 @@ Segment Segment::generateLengthSegment(double min, double max, double length)
 	double x1 = dist(e2);
 	double y1 = dist(e2);
 
+	//try until segment won't fit into square
 	double x_shift, y_shift;
 	std::uniform_real_distribution<double> dist_length(-length, length);
 	do {
@@ -190,12 +202,14 @@ bool Segment::intersects(const Segment& s, double& x, double& y) const
 {
 	
 	double parallel = -s.data->s_x * data->s_y + data->s_x * s.data->s_y;
+	//two segments are parallel
 	if(parallel == 0)
 	{
 		double a_x, a_y;
 		a_x = s.data->x1 - data->x1;
 		a_y = s.data->y1 - data->y1;
-		if( a_x * data->s_y - a_y * data->s_x == 0) //colinear
+		//segments might be colinear
+		if( a_x * data->s_y - a_y * data->s_x == 0)
 		{
 			if( data->x1 >= s.data->x1 && data->x1 <= s.data->x2 )
 			{
@@ -217,6 +231,7 @@ bool Segment::intersects(const Segment& s, double& x, double& y) const
 	u = (-data->s_y * (data->x1 - s.data->x1) + data->s_x * (data->y1 - s.data->y1) ) / ( -s.data->s_x * data->s_y + data->s_x * s.data->s_y) ;
 	t = ( s.data->s_x * (data->y1 - s.data->y1) - s.data->s_y * (data->x1 - s.data->x1)) / ( -s.data->s_x * data->s_y + data->s_x * s.data->s_y) ;
 
+	//segments are not colinear and intersect
 	if(u >= 0 && u <= 1 && t >= 0 && t <= 1)
 	{
 		x = data->x1 + (t * data->s_x);
@@ -252,9 +267,11 @@ sf::Color Segment::generateColor(int group) const
 
 Point Segment::sweepLineIntersection() const
 {
+	//segment is vertical - return special point
 	if( equal(data->s_x, 0, 0.0001 ) ) {
 		return Point(sweep_line, data->special_intersection, CROSS, data );
 	}
+	
 	double x = sweep_line;
 	double y = data->y1 + ( (x - data->x1) * data->s_y / data->s_x ) ;
 	return Point(x, y, CROSS, data );

@@ -8,7 +8,7 @@
  *        Version:  1.0
  *        Created:  06.11.2016 13:58:40
  *       Revision:  none
- *       Compiler:  gcc
+ *       Compiler:  g++
  *
  *         Author:  Michał Glinka 
  *   Organization:  Politechnika Warszawska
@@ -36,31 +36,35 @@
 namespace po = boost::program_options;
 
 
-
+/* 
+ * main function, parses command line arguments and solves a task
+ * */
 int main(int ac, char *av[])
 {
 	int number = 1000;
 	double size = 1000;
 	double leng = 50;
 	PlanarIntersections test;
+
+	//initialize command line parser
 	po::variables_map vm;
 	po::options_description desc("Allowed options");
 	try
 	{
 		desc.add_options()
-			("help,h", 			"produce help message")
-			("number,n", po::value<int>(), 		"number of segments" )
-			("size,s", po::value<double>(), 			"size of a plane")
-			("read,r",		"read data from standard input")
-			("length,l", po::value<double>(),		"average length of segment")
-			("random", po::value<int>(),		"make specified number of tests with random data, each one with two times more segments and two times bigger plane")
-			("visualize,v",			"show visualization of segments")
-			("draw_squares",		"draw square on each intersection")
-			("ottman_bentley", 		"use Ottman-Bentley algorithm")
-			("naive",				"use naive algorithm")
-			("naive_sorted",		"use naive pre-sorted algorithm")
-			("BFS",					"use BFS algorithm")
-			("disjoint_set",		"use disjoint-set algorithm")
+			("help,h", 								"produce help message")
+			("number,n", 	po::value<int>(), 		"number of segments" )
+			("size,s", 		po::value<double>(), 	"size of a plane")
+			("read,r",								"read data from standard input")
+			("length,l", 	po::value<double>(),	"maximal length of segment")
+			("random", 		po::value<int>(),		"make specified number of tests with random data, each one with more segments and bigger plane")
+			("visualize,v",							"show visualization of segments")
+			("draw_squares",						"draw square on each intersection")
+			("ottman_bentley", 						"use Ottman-Bentley algorithm")
+			("naive",								"use naive algorithm")
+			("naive_sorted",						"use naive pre-sorted algorithm")
+			("BFS",									"use BFS algorithm")
+			("disjoint_set",						"use disjoint-set algorithm")
 		;
 
 		po::store(po::parse_command_line(ac, av, desc), vm);
@@ -71,24 +75,30 @@ int main(int ac, char *av[])
 		std::cout<<e.what()<<std::endl;
 		return 0;
 	}
+	
+	//rpint help
 	if ( vm.count("help") ) {
 		std::cout<<desc<<std::endl;
 		return 0;
 	}
 
+	//set segments number
 	if( vm.count("number") ) {
 		number = vm["number"].as<int>();
 	}
 
+	//set plane size
 	if( vm.count("size") ) {
 		size = vm["size"].as<double>();
 	}
 	test.setMax( size );
 
+	//set maximal segment length
 	if( vm.count("length") ) {
 		leng = vm["length"].as<double>();
 	}
 
+	//read segments from input
 	if( vm.count("read") ) {
 		std::cout<<"Specify number of segments"<<std::endl;
 		std::cin>>number;
@@ -104,6 +114,7 @@ int main(int ac, char *av[])
 		test.generateSegments( number, leng );
 	}
 
+	//set solver for intersections
 	if( vm.count("ottman_bentley") ) {
 		test.setIntersectionSolver( OTTMAN );
 		std::cout<<"Chosen Ottman-Bentley algorithm for solving intersections."<<std::endl;
@@ -117,6 +128,7 @@ int main(int ac, char *av[])
 		std::cout<<"Chosen naive algorithm for solving intersections."<<std::endl;
 	}
 
+	//set solver for graphs
 	if( vm.count("disjoint_set") ) {
 		test.setGraphSolver( DISJOINT_SET );
 		std::cout<<"Chosen disjoint-sets for solving graph algorithm."<<std::endl;
@@ -126,6 +138,8 @@ int main(int ac, char *av[])
 		std::cout<<"Chosen BFS for solving graph algorithm."<<std::endl;
 	}
 
+	//create random data and test program
+	//creating more segments in each step
 	if( vm.count("random") ) {
 		int iterations = vm["random"].as<int>();
 		double step_size = size;
@@ -139,17 +153,22 @@ int main(int ac, char *av[])
 			step_number += number;
 		}
 	}
+	//else solve problem and prints its time
 	else {
 		test.solveWithTime();
 	}
 
+
+	//set drawing squares on visualization
 	if( vm.count("draw_squares") ) {
 		test.setDrawSquares( true );
 	}
 
+	//visualize results
 	if( vm.count("visualize") ) {
 		test.visualize();
 	}
 
+	return 0;
 }
 

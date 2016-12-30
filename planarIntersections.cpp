@@ -1,12 +1,16 @@
 #include "planarIntersections.h"
 
+
 PlanarIntersections::PlanarIntersections() : min(0.0) , max(1000.0) , graph_solver(OTTMAN), intersection_solver(BFS_GRAPH), draw_squares(false) {}
+
 
 void PlanarIntersections::generateSegments( int n, double length ) 
 {
+	//clear previous segments
 	Segment::resetIndex();
 	segments.erase( segments.begin(), segments.end() );
 	squares.erase( squares.begin(), squares.end() );
+
 	for( unsigned int i = 0; i < n; ++i )
 	{
 		segments.push_back( Segment::generateLengthSegment( min, max, length ) );
@@ -42,6 +46,8 @@ void PlanarIntersections::visualize()
 		{
 			window.draw(s.getVertexes(), 2, sf::Lines);
 		}
+		
+		//test if squares should be drawn
 		if( draw_squares ) {
 			for(auto s : squares)
 			{
@@ -56,6 +62,7 @@ void PlanarIntersections::visualize()
 
 bool PlanarIntersections::solve()
 {
+	//choose solver for finding intersections
 	if( intersection_solver == OTTMAN ) {
 		if( !OttmanBentley() ) {
 			std::cout<<" Too many points ! "<<std::endl;
@@ -73,6 +80,7 @@ bool PlanarIntersections::solve()
 		}
 	}
 
+	//choose solver for findind connected components
 	if( graph_solver == BFS_GRAPH ) {
 		BFS();
 	}
@@ -86,6 +94,7 @@ void PlanarIntersections::solveWithTime()
 {
 	clock_t tStart = clock();
 	if( ! solve() ) {
+		//solving failed
 		std::cout<<"Not enough precision needed for calculations!"<<std::endl;
 		return;
 	}
@@ -109,13 +118,9 @@ void PlanarIntersections::addSquare(int x, int y)
 	squares.push_back(rectangle);
 }
 
-
-
-
-
-
 bool PlanarIntersections::naive()
 {
+	//check if every pair of segments intersect
 	double x,y;
 	for( int i = 0; i < segments.size() ; ++i)
 	{
@@ -144,6 +149,8 @@ bool PlanarIntersections::sorted_naive()
 
 	std::sort( points.begin(), points.end(), Point::cmp_point() );
 	
+	//the same as naive but don't compare segments which
+	//doesn't lay one under another
 	for( auto& p : points )
 	{
 		double x,y;
@@ -171,19 +178,22 @@ bool PlanarIntersections::computeBeginningPoint(std::set<Point, Point::cmp_point
 {	
 	typedef std::set<Segment*, Segment::cmp_ptr>::iterator seg_itr;	
 	Segment *curr_segm = &(segments[p.getOwner()]);
+	
+	seg_itr curr_itr = segments_tree.insert( curr_segm ).first;
 	seg_itr predecessor = segments_tree.end();
 	seg_itr sucessor = segments_tree.end();
-
-	seg_itr curr_itr = segments_tree.insert( curr_segm ).first;
 	if( curr_itr != segments_tree.begin() ){
 		predecessor = std::prev(curr_itr);
 	}
 	sucessor = std::next(curr_itr);
+
 	double x,y;
+	//neighbours of newly added segment are not their neighbours so delete their intersection from tree
 	if( predecessor != segments_tree.end() && sucessor != segments_tree.end() && (*predecessor)->intersects( *sucessor, x, y ) ){
 		event_queue.erase( Point(x, y, CROSS, (*predecessor)->getData(), (*sucessor)->getData() ) );
 	}
-
+	
+	//check if new intersections showed up after insertion
 	if( predecessor != segments_tree.end() && (*predecessor)->intersects( *curr_itr, x, y ) ) {
 		if( !event_queue.insert( Point(x, y, CROSS, (*predecessor)->getData(), (*curr_itr)->getData() ) ).second )
 			return false;	
@@ -202,15 +212,17 @@ bool PlanarIntersections::computeEndPoint(std::set<Point, Point::cmp_point >& ev
 {
 	typedef std::set<Segment*, Segment::cmp_ptr>::iterator seg_itr;	
 	Segment *curr_segm = &(segments[p.getOwner()]);
-	seg_itr predecessor = segments_tree.end();
-	seg_itr sucessor = segments_tree.end();
 
 	seg_itr curr_itr = segments_tree.insert( curr_segm ).first;
+	seg_itr predecessor = segments_tree.end();
+	seg_itr sucessor = segments_tree.end();
 	if( curr_itr != segments_tree.begin() ){
 		predecessor = std::prev(curr_itr);
 	}
 	sucessor = std::next(curr_itr);
+
 	double x,y;
+	//segment is erased so new crossing can be added
 	if( predecessor != segments_tree.end() && sucessor != segments_tree.end() ) {
 		if( (*predecessor)->intersects( *sucessor, x, y ) ) {
 			if( !smaller( x, p.x ) )
@@ -218,6 +230,8 @@ bool PlanarIntersections::computeEndPoint(std::set<Point, Point::cmp_point >& ev
 					return false;
 		}
 	}
+
+	//segment ended so erase it from the tree
 	segments_tree.erase( curr_itr );
 	return true;
 }
@@ -227,15 +241,17 @@ bool PlanarIntersections::computeCrossingPoint(std::set<Point, Point::cmp_point 
 			std::set<Segment*, Segment::cmp_ptr>& segments_tree, Point& p)
 {
 	typedef std::set<Segment*, Segment::cmp_ptr>::iterator seg_itr;	
-	Segment *curr_segm = &(segments[p.getOwner()]);
 	seg_itr predecessor = segments_tree.end();
 	seg_itr sucessor = segments_tree.end();
 
+	//segments intersect, connect them !
 	int s1 = p.getOwner();
 	int s2 = p.getIntersection();
 	segments[s1].connect(segments[s2]);
 	segments[s2].connect(segments[s1]);
 
+	//try to find neighbours of crossing segments
+	//if this fails too much precision is needed for correct solving
 	auto s1_itr = segments_tree.find( &segments[s1] );
 	auto s2_itr = segments_tree.find( &segments[s2] );
 	if( s1_itr == segments_tree.end() ) { 
@@ -246,15 +262,17 @@ bool PlanarIntersections::computeCrossingPoint(std::set<Point, Point::cmp_point 
 	}
 
 	if( s1_itr != segments_tree.begin() ) {
-		predecessor = s1_itr;
-		--predecessor;
+		predecessor = std::prev(s1_itr);
 	}
-	sucessor = s2_itr;
-	++sucessor;
+	sucessor = std::next(s2_itr);
 
+	//add new square for drawing
 	double x,y;
 	segments[s1].intersects( segments[s2], x, y);
 	addSquare(x, y);
+
+	//check for new intersections
+	//delete intersctions of segments that won't be theirs neighbours anymore
 	if( sucessor != segments_tree.end() && (*sucessor)->intersects( *s2_itr, x, y) ){
 		event_queue.erase( Point(x, y, CROSS, (*s2_itr)->getData(), (*sucessor)->getData() ) );
 	}
@@ -279,12 +297,14 @@ bool PlanarIntersections::computeCrossingPoint(std::set<Point, Point::cmp_point 
 		}
 	}
 
+	//update special intersection of vertical segments
 	if( segments[s1].isVertical() )
 		segments[s1].setSpecialIntersection( segments[s2].sweepLineIntersection() );
 
 	if( segments[s2].isVertical() )
 		segments[s2].setSpecialIntersection( segments[s1].sweepLineIntersection() );
 
+	//segments after crossing are in reverse order in segments tree so swap them
 	segments[s1].swap( segments[s2] );
 	return true;
 }
@@ -296,6 +316,7 @@ bool PlanarIntersections::OttmanBentley()
 	std::set<Point, Point::cmp_point > event_queue;
 	std::set<Segment*, Segment::cmp_ptr> segments_tree;
 
+	//add points of segments to priority queue
 	for( auto& s : segments )
 	{
 		event_queue.insert(s.getBeginning());
@@ -305,11 +326,9 @@ bool PlanarIntersections::OttmanBentley()
 	while( !event_queue.empty() )
 	{
 		auto p = *(event_queue.begin());
-		Segment *curr_segm = &(segments[p.getOwner()]);
-		seg_itr predecessor = segments_tree.end();
-		seg_itr sucessor = segments_tree.end();
 		Segment::setSweepLine( p );
 		event_queue.erase( p );
+		//parse point accordingly to its type
 		if(p.getType() == BEGINNING ) {
 			if( !computeBeginningPoint( event_queue, segments_tree, p) ) {
 				return false;
@@ -326,6 +345,9 @@ bool PlanarIntersections::OttmanBentley()
 			}
 		}
 	}
+
+	//if tree is not empty some segments failed to erase
+	//too much precision was needed and algorithm failed
 	return segments_tree.empty();
 }
 
@@ -338,14 +360,17 @@ void PlanarIntersections::BFS()
 	int index;
 	for(unsigned int i = 0; i < segments.size(); ++i)
 	{
+		//forget about visited vertexes
 		s = segments[i].getData();
 		index = s->getIndex();
 		if(visited[index]) continue;
 		
+		//all neighbours and their neighbours have the same group
 		group.push(s);
 		++group_index;
 		visited[index] = true;
 		s->setGroup(group_index);
+		//get all neighbours and their neighbours
 		while(!group.empty())
 		{
 			s = group.front();
@@ -353,6 +378,7 @@ void PlanarIntersections::BFS()
 			auto neighbours = s->getNeighbours();
 			for( auto n : neighbours)
 			{
+				//all neighbours of this vertex are already parsed
 				if(visited[n->getIndex()]) continue;
 
 				visited[n->getIndex()] = true;
@@ -373,10 +399,12 @@ void PlanarIntersections::disjointSetFind()
 		auto& neighbours = s.getNeighbours();
 		for( auto& n : neighbours )
 		{
+			//make union of connected segments
 			dset.makeUnion( s.getIndex(), n->getIndex() );
 		}
 	}
 
+	//set groups for segments
 	auto& groups = dset.getGroups();
 	for( int i = 0; i < groups.size(); ++i )
 	{

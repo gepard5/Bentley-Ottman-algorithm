@@ -19,9 +19,12 @@ void DisjointSet::makeUnion( int x, int y )
 	int xRoot = find(x);
 	int yRoot = find(y);
 
+	//same set - don't do anything
 	if( xRoot == yRoot ) 
 		return;
-
+	
+	//try to make tree as low as possible
+	//always connect t oa tree with higher rank
 	if( ranks[xRoot] < ranks[yRoot] ) {
 		parents[xRoot] = yRoot;
 		return;
@@ -38,6 +41,7 @@ void DisjointSet::makeUnion( int x, int y )
 
 int DisjointSet::find( int x )
 {
+	//flatten the tree, connect x to its root
 	if( parents[x] != x ) {
 		parents[x] = find(parents[x]);
 	}
@@ -48,6 +52,7 @@ std::vector<int>& DisjointSet::getGroups()
 {
 	for( int i = 0; i < parents.size(); ++i )
 	{
+		//connect every element to its root
 		find( i );
 	}
 	return parents;
