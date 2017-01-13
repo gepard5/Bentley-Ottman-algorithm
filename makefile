@@ -8,7 +8,7 @@ OBJ=main.o planarIntersections.o segment.o disjoint.o
 %.o: %.cpp $(DEPS)
 	$(CXX) -c -o $@ $< $(CFLAGS) $(LIBS)
 
-test: $(OBJ)
+planar: $(OBJ)
 	$(CXX) -o $@ $^ $(CFLAGS) $(LIBS)
 
 clean:

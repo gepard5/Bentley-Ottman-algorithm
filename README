@@ -1,0 +1,16 @@
+Use --help to show program options.
+
+Segments data format :
+n
+x1 y1 x2 y2
+x1 y1 x2 y2
+...
+where n - number of segments
+x1,y1,x2,y2 - coordinates of segments
+
+main.cpp - main program loop, parsing arguments and example of solving planar intersections
+segment.h - classes representing points and segments, allowing to generate random segments with given specifics and used by algorithms to solve planar intersection problem
+disjoint.h - struct realising disjoint-sets container, used for finding connected graphs components
+planarIntersections.h - main class used for solving planar intersections implementing algorithm for both finding intersections of segments on a plane and connected components of graph
+
+Warning! To run this program you need to have libary boost - program_options installed.

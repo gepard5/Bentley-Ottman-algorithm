@@ -1,3 +1,21 @@
+/*
+ * =====================================================================================
+ *
+ *       Filename: planarIntersections.cpp
+ *
+ *    Description:  Implementing Ottman-Bentley algorithm for fiding intersections of segments on a plane and then finding connected graphs among them.
+ *    				Also allowsuser to compare different methods of finding intersections and connected graph components.
+ *
+ *        Version:  1.0
+ *        Created:  06.11.2016 13:58:40
+ *       Revision:  none
+ *       Compiler:  g++
+ *
+ *         Author:  Michał Glinka 
+ *   Organization:  Politechnika Warszawska
+ *
+ * =====================================================================================
+ */
 #include "planarIntersections.h"
 
 
@@ -11,7 +29,7 @@ void PlanarIntersections::generateSegments( int n, double length )
 	segments.erase( segments.begin(), segments.end() );
 	squares.erase( squares.begin(), squares.end() );
 
-	for( unsigned int i = 0; i < n; ++i )
+	for( int i = 0; i < n; ++i )
 	{
 		segments.push_back( Segment::generateLengthSegment( min, max, length ) );
 	}
@@ -122,9 +140,9 @@ bool PlanarIntersections::naive()
 {
 	//check if every pair of segments intersect
 	double x,y;
-	for( int i = 0; i < segments.size() ; ++i)
+	for( unsigned int i = 0; i < segments.size() ; ++i)
 	{
-		for( int j = i+1; j < segments.size(); ++j )
+		for( unsigned int j = i+1; j < segments.size(); ++j )
 		{
 			if( segments[i].intersects( segments[j], x, y ) ) {
 				addSquare(x, y);
@@ -311,7 +329,6 @@ bool PlanarIntersections::computeCrossingPoint(std::set<Point, Point::cmp_point 
 
 bool PlanarIntersections::OttmanBentley()
 {
-	typedef std::set<Segment*, Segment::cmp_ptr>::iterator seg_itr;
 	//generate beginning priority queue
 	std::set<Point, Point::cmp_point > event_queue;
 	std::set<Segment*, Segment::cmp_ptr> segments_tree;
@@ -406,7 +423,7 @@ void PlanarIntersections::disjointSetFind()
 
 	//set groups for segments
 	auto& groups = dset.getGroups();
-	for( int i = 0; i < groups.size(); ++i )
+	for( unsigned int i = 0; i < groups.size(); ++i )
 	{
 		segments[i].setGroup( groups[i] );
 	}

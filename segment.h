@@ -1,3 +1,21 @@
+/*
+ * =====================================================================================
+ *
+ *       Filename:  segment.h
+ *
+ *    Description:  Implementing Ottman-Bentley algorithm for fiding intersections of segments on a plane and then finding connected graphs among them.
+ *    				Also allowsuser to compare different methods of finding intersections and connected graph components.
+ *
+ *        Version:  1.0
+ *        Created:  06.11.2016 13:58:40
+ *       Revision:  none
+ *       Compiler:  g++
+ *
+ *         Author:  Michał Glinka 
+ *   Organization:  Politechnika Warszawska
+ *
+ * =====================================================================================
+ */
 #include <stdlib.h>
 #include <iostream>
 #include <random>

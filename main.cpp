@@ -4,6 +4,7 @@
  *       Filename:  main.cpp
  *
  *    Description:  Implementing Ottman-Bentley algorithm for fiding intersections of segments on a plane and then finding connected graphs among them.
+ *    				Also allowsuser to compare different methods of finding intersections and connected graph components.
  *
  *        Version:  1.0
  *        Created:  06.11.2016 13:58:40
@@ -73,10 +74,11 @@ int main(int ac, char *av[])
 	catch( po::error& e)
 	{
 		std::cout<<e.what()<<std::endl;
+		std::cout<<desc<<std::endl;
 		return 0;
 	}
 	
-	//rpint help
+	//print help
 	if ( vm.count("help") ) {
 		std::cout<<desc<<std::endl;
 		return 0;

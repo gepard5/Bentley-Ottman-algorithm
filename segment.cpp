@@ -1,15 +1,34 @@
+/*
+ * =====================================================================================
+ *
+ *       Filename:  segment.cpp
+ *
+ *    Description:  Implementing Ottman-Bentley algorithm for fiding intersections of segments on a plane and then finding connected graphs among them.
+ *    				Also allowsuser to compare different methods of finding intersections and connected graph components.
+ *
+ *        Version:  1.0
+ *        Created:  06.11.2016 13:58:40
+ *       Revision:  none
+ *       Compiler:  g++
+ *
+ *         Author:  Michał Glinka 
+ *   Organization:  Politechnika Warszawska
+ *
+ * =====================================================================================
+ */
 #include "segment.h"
 
 int Segment::global_index = 0;
 double Segment::sweep_line = 0.0;
+const double precision = 0.0001;
 
-
+//function for better doubles comparing
 bool equal(double a, double b, double epsilon)
 {
     return fabs(a - b) <= epsilon;
 }
 
-bool smaller( double a, double b, double epsilon )
+bool smaller( double a, double b, double epsilon)
 {
 	return  (b - a) > epsilon;
 }
@@ -17,8 +36,8 @@ bool smaller( double a, double b, double epsilon )
 
 Point::Point(double m_x, double m_y, Type m_t, SegmentData *m_owner, SegmentData *m_intersection): 
 	x(m_x), y(m_y), t(m_t), owner(m_owner), intersection(m_intersection) {}
-	
 
+//function used by priority queue and tree to compare points
 bool Point::cmp_point::operator()(const Point& p1, const Point& p2) const
 { 
 	//if points are the same they can't be smaller
@@ -41,7 +60,7 @@ bool Point::cmp_point::operator()(const Point& p1, const Point& p2) const
 		if( p1.t != p2.t ) return p1.t < p2.t;
 	}
 	
-	return equal( p1.x, p2.x, 0.0001 ) ? smaller(p1.y, p2.y) : smaller(p1.x, p2.x); 
+	return equal( p1.x, p2.x, precision ) ? smaller(p1.y, p2.y) : smaller(p1.x, p2.x); 
 }
 
 
@@ -58,7 +77,7 @@ bool operator>(const Point& p1, const Point& p2)
 	//same points can't be smaller
 	if( p1.getNumber() == p2.getNumber() && p1.getIntersection() == p2.getIntersection() && p1.getType() == p2.getType() ) 
 		return false;
-	return equal(p1.x, p2.x, 0.0001) ? p1.y < p2.y : p1.x < p2.x ; 
+	return equal(p1.x, p2.x, precision) ? p1.y < p2.y : p1.x < p2.x ; 
 }
 
 bool operator==(const Point& p1, const Point& p2)
@@ -68,7 +87,7 @@ bool operator==(const Point& p1, const Point& p2)
 
 
 
-
+//function used by segment tree to compare segments
 bool Segment::cmp_ptr::operator()(const Segment *s1, const Segment *s2) const
 {
 	if( s1->data->index == s2->data->index ) return false;
@@ -76,10 +95,10 @@ bool Segment::cmp_ptr::operator()(const Segment *s1, const Segment *s2) const
 	Point p1 = s1->sweepLineIntersection();
 	Point p2 = s2->sweepLineIntersection();
 
-	if( equal(p1.y, p2.y, 0.0001) ) {
+	if( equal(p1.y, p2.y, precision) ) {
 		//vertical segment is always bigger
-		if( equal(s1->data->s_x, 0, 0.0001) ) return false;
-		if( equal(s2->data->s_x, 0, 0.0001) ) return true;
+		if( equal(s1->data->s_x, 0, precision) ) return false;
+		if( equal(s2->data->s_x, 0, precision) ) return true;
 	
 		//comparing is happening before swap
 		//so if we compare crossing of two points
@@ -268,7 +287,7 @@ sf::Color Segment::generateColor(int group) const
 Point Segment::sweepLineIntersection() const
 {
 	//segment is vertical - return special point
-	if( equal(data->s_x, 0, 0.0001 ) ) {
+	if( equal(data->s_x, 0, precision ) ) {
 		return Point(sweep_line, data->special_intersection, CROSS, data );
 	}
 	
@@ -282,6 +301,8 @@ void Segment::setSpecialIntersection( Point p )
 	data->special_intersection = p.y;
 }
 
+//swap segments data
+//don;t change their index cause their position in vector didn't change
 void Segment::swap( Segment& s )
 {
 	auto tmp_index = data->index;
