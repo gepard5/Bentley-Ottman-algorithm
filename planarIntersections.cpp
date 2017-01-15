@@ -47,7 +47,7 @@ void PlanarIntersections::addSegment( double x1, double y1, double x2, double y2
 
 void PlanarIntersections::visualize()
 {
-	sf::RenderWindow window(sf::VideoMode((int)max, (int)max), "Test window");
+	sf::RenderWindow window(sf::VideoMode((int)max, (int)max), "Planar visualization");
 
 	while(window.isOpen())
 	{
