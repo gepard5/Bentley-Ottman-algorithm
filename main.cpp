@@ -18,6 +18,7 @@
  */
 #include <stdlib.h>
 #include <iostream>
+#include <iomanip>
 #include <random>
 #include <vector>
 #include <queue>
@@ -36,7 +37,30 @@
 
 namespace po = boost::program_options;
 
+void solveRandomizedTests(PlanarIntersections& test, double size, int number, int leng, int iterations)
+{
+	std::vector<double> solving_times(iterations);
+	std::vector<long> complexities(iterations);
+	double step_size = size;
+	int step_number = number;
+	for( int i = 0; i < iterations; ++i )
+	{
+		test.setMax( step_size );
+		test.generateSegments( step_number, leng );
+		solving_times[i] = test.solveWithTime();
+		complexities[i] = test.getComplexity(step_number);
+		step_size += size * 0.3;
+		step_number += number;
+	}
 
+	double solve_median = solving_times[iterations/2];
+	double complexity_median = complexities[iterations/2];
+	
+	std::cout<<std::setw(12);
+	std::cout<<"t(n)"<<std::setw(12)<<"T(n)"<<std::setw(12)<<"q(n)"<<std::endl;
+	for( int i = 0; i < iterations; ++i )
+		std::cout<<std::setw(12)<<solving_times[i]<<std::setw(12)<<complexities[i]<<std::setw(12)<<solving_times[i] * complexity_median / ( solve_median * complexities[i] ) << std::endl;
+}
 /* 
  * main function, parses command line arguments and solves a task
  * */
@@ -66,6 +90,7 @@ int main(int ac, char *av[])
 			("naive_sorted",						"use naive pre-sorted algorithm")
 			("BFS",									"use BFS algorithm")
 			("disjoint_set",						"use disjoint-set algorithm")
+			("dense",								"indicate data will be hard, complexity of algorithms might change")
 		;
 
 		po::store(po::parse_command_line(ac, av, desc), vm);
@@ -98,6 +123,10 @@ int main(int ac, char *av[])
 	//set maximal segment length
 	if( vm.count("length") ) {
 		leng = vm["length"].as<double>();
+	}
+
+	if( vm.count("dense") ) {
+		test.setDenseData(true);
 	}
 
 	//read segments from input
@@ -144,20 +173,17 @@ int main(int ac, char *av[])
 	//creating more segments in each step
 	if( vm.count("random") ) {
 		int iterations = vm["random"].as<int>();
-		double step_size = size;
-		int step_number = number;
-		for( int i = 0; i < iterations; ++i )
-		{
-			test.setMax( step_size );
-			test.generateSegments( step_number, leng );
-			test.solveWithTime();
-			step_size += size * 0.3;
-			step_number += number;
-		}
+		solveRandomizedTests(test, size, number, leng, iterations );
 	}
 	//else solve problem and prints its time
 	else {
-		test.solveWithTime();
+		double time = test.solveWithTime();
+		if( time == -1 ) {
+			std::cout<<"Too much precision needed to finish calculations"<<std::endl;
+		}
+		else {
+			std::cout<<"Time taken: "<<time<<std::endl;
+		}
 	}
 
 

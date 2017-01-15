@@ -13,4 +13,5 @@ segment.h - classes representing points and segments, allowing to generate rando
 disjoint.h - struct realising disjoint-sets container, used for finding connected graphs components
 planarIntersections.h - main class used for solving planar intersections implementing algorithm for both finding intersections of segments on a plane and connected components of graph
 
-Warning! To run this program you need to have libary boost - program_options installed.
+Warning! To run this program you need to have libary boost - program_options and sfml installed.
+If you don't have needed libraries installed you can run install_debs file as a superuser to install them automatically.

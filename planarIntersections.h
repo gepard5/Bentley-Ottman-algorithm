@@ -63,7 +63,7 @@ public:
 	/*
 	 * solve problem and if suceeded print time needed for computing
 	 */
-	void solveWithTime();
+	double solveWithTime();
 
 	/*
 	 * print info about every segments added to class
@@ -128,7 +128,14 @@ public:
 	 */
 	void setMax( double m )
 	{ max = m; }
-	
+
+	/*
+	 * returns expected complexity for given algorithms
+	 */
+	double getComplexity( int n );
+
+	void setDenseData( bool d )
+	{ denseData = d; }
 
 private:
 	/*
@@ -185,4 +192,8 @@ private:
 	 * test whether squares should be drawn or not
 	 */
 	bool draw_squares;
+	/*
+	 * indicate data for solving will be hard for solving
+	 */
+	bool denseData;
 };

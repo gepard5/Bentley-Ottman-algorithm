@@ -19,7 +19,7 @@
 #include "planarIntersections.h"
 
 
-PlanarIntersections::PlanarIntersections() : min(0.0) , max(1000.0) , graph_solver(OTTMAN), intersection_solver(BFS_GRAPH), draw_squares(false) {}
+PlanarIntersections::PlanarIntersections() : min(0.0) , max(1000.0) , graph_solver(OTTMAN), intersection_solver(BFS_GRAPH), draw_squares(false), denseData(false) {}
 
 
 void PlanarIntersections::generateSegments( int n, double length ) 
@@ -83,7 +83,6 @@ bool PlanarIntersections::solve()
 	//choose solver for finding intersections
 	if( intersection_solver == OTTMAN ) {
 		if( !OttmanBentley() ) {
-			std::cout<<" Too many points ! "<<std::endl;
 			return false;
 		}
 	}
@@ -108,22 +107,37 @@ bool PlanarIntersections::solve()
 	return true;
 }
 
-void PlanarIntersections::solveWithTime()
+double PlanarIntersections::solveWithTime()
 {
 	clock_t tStart = clock();
 	if( ! solve() ) {
 		//solving failed
-		std::cout<<"Not enough precision needed for calculations!"<<std::endl;
-		return;
+		return -1;
 	}
 
-	std::cout<<"Time taken: "<<((double)(clock() - tStart))/CLOCKS_PER_SEC<<std::endl;
+	return ((double)(clock() - tStart)/CLOCKS_PER_SEC);
 }
 
 void PlanarIntersections::printResults() const
 {
 	for( auto& s : segments )
 		s.printInfo();
+}
+
+double PlanarIntersections::getComplexity( int n )
+{
+	if( denseData ) {
+		if( intersection_solver == OTTMAN )
+			return ( (double) n * (double)n * log2(n));
+		
+		return n * n;
+	}
+	else {
+		if( intersection_solver == NAIVE ) 
+			return n * n;
+
+		return ( (double)n * log2(n));
+	}
 }
 
 
